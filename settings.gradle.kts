@@ -9,5 +9,6 @@ plugins {
 rootProject.name = "from-objects-to-functions"
 
 include(
-    "exercises"
+    "exercises",
+    "zettai_step1_http"
 )
