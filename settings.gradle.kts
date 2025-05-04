@@ -10,5 +10,6 @@ rootProject.name = "from-objects-to-functions"
 
 include(
     "exercises",
-    "zettai_step1_http"
+    "zettai_step1_http",
+    "zettai_step2_domain",
 )
