@@ -3,6 +3,7 @@ package com.zettai.webservice
 import com.zettai.domain.ListName
 import com.zettai.domain.ToDoList
 import com.zettai.domain.User
+import com.zettai.domain.ZettaiHub
 import com.zettai.ui.HtmlPage
 import com.zettai.ui.renderHtml
 import org.http4k.core.*
@@ -10,7 +11,7 @@ import org.http4k.routing.bind
 import org.http4k.routing.path
 import org.http4k.routing.routes
 
-class Zettai(val lists: Map<User, List<ToDoList>>) : HttpHandler {
+class Zettai(val hub: ZettaiHub) : HttpHandler {
 
     val routes = routes(
         "/todo/{user}/{list}" bind Method.GET to ::getToDoList,
@@ -33,8 +34,7 @@ class Zettai(val lists: Map<User, List<ToDoList>>) : HttpHandler {
     }
 
     private fun fetchListContent(listId: Pair<User, ListName>): ToDoList {
-        return lists[listId.first]
-            ?.firstOrNull { it.listName == listId.second }
+        return hub.getList(listId.first, listId.second)
             ?: error("List unknown")
     }
 

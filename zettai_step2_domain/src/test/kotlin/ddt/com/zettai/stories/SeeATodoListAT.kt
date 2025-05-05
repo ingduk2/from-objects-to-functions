@@ -1,9 +1,6 @@
-package com.zettai.stories
+package ddt.com.zettai.stories
 
-import com.zettai.domain.ListName
-import com.zettai.domain.ToDoItem
-import com.zettai.domain.ToDoList
-import com.zettai.domain.User
+import com.zettai.domain.*
 import com.zettai.webservice.Zettai
 import org.http4k.client.JettyClient
 import org.http4k.core.*
@@ -53,7 +50,7 @@ class SeeATodoListAT {
 
     private fun startTheApplication(lists: Map<User, List<ToDoList>>): ApplicationForAT {
         val port = 8081
-        val server = Zettai(lists).asServer(Jetty(8081))
+        val server = Zettai(ToDoListHub(lists)).asServer(Jetty(8081))
         server.start()
 
         val client = ClientFilters
