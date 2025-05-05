@@ -24,8 +24,9 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     private fun getToDoList(request: Request): Response =
         request.let(::extractListData)
             .let(::fetchListContent)
-            .let(::renderHtml)
-            .let(::createResponse)
+            ?.let(::renderHtml)
+            ?.let(::createResponse)
+            ?: Response(Status.NOT_FOUND)
 
     private fun extractListData(request: Request): Pair<User, ListName> {
         val user = request.path("user") ?: error("User missing")
@@ -33,9 +34,8 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
         return User(user) to ListName(list)
     }
 
-    private fun fetchListContent(listId: Pair<User, ListName>): ToDoList {
+    private fun fetchListContent(listId: Pair<User, ListName>): ToDoList? {
         return hub.getList(listId.first, listId.second)
-            ?: error("List unknown")
     }
 
     private fun createResponse(html: HtmlPage): Response {

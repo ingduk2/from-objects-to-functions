@@ -13,9 +13,9 @@ fun renderHtml(todoList: ToDoList): HtmlPage =
                     <h1>Zettai</h1>
                     <h2>${todoList.listName.name}</h2>
                     <table>
-                        <tbody>${renderItems(todoList.items)}</tbody
+                        <tbody>${renderItems(todoList.items)}</tbody>
                     </table>
-                </body
+                </body>
              </html>
         """.trimIndent()
     )
