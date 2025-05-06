@@ -2,6 +2,7 @@ package ddt.com.zettai.tooling
 
 import com.ubertob.pesticide.core.DdtActor
 import com.zettai.domain.ListName
+import com.zettai.domain.ToDoItem
 import com.zettai.domain.ToDoList
 import com.zettai.domain.User
 import strikt.api.Assertion
@@ -14,7 +15,7 @@ data class ToDoListOwner(
     override val name: String
 ) : DdtActor<ZettaiActions>() {
 
-    private val user = User(name)
+    val user = User(name)
 
     fun `can see #listname with #itemnames`(
         listName: String,
@@ -33,6 +34,12 @@ data class ToDoListOwner(
         step(listName) {
             val list = getToDoList(user, ListName(listName))
             expectThat(list).isNull()
+        }
+
+    fun `can add #item to #listname`(itemName: String, listName: String) =
+        step(itemName, listName) {
+            val toDoItem = ToDoItem(itemName)
+            addListItem(user, ListName(listName), toDoItem)
         }
 }
 

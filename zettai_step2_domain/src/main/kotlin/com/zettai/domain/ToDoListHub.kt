@@ -2,13 +2,20 @@ package com.zettai.domain
 
 interface ZettaiHub {
     fun getList(user: User, listName: ListName): ToDoList?
+    fun addItemToList(user: User, listName: ListName, item: ToDoItem): ToDoList?
 }
 
 class ToDoListHub(
-    val lists: Map<User, List<ToDoList>>
+    val fetcher: ToDoListUpdatableFetcher
 ) : ZettaiHub {
     override fun getList(user: User, listName: ListName): ToDoList? {
-        return lists[user]
-            ?.firstOrNull { it.listName == listName }
+        return fetcher(user, listName)
     }
+
+    override fun addItemToList(user: User, listName: ListName, item: ToDoItem): ToDoList? =
+        fetcher(user, listName)?.run {
+            // 기존 item 제거 후 갱신
+            val newList = copy(items = items.filterNot { it.description == item.description } + item)
+            fetcher.assignListToUser(user, newList)
+        }
 }

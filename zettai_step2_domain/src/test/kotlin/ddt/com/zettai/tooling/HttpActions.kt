@@ -9,6 +9,8 @@ import org.http4k.core.Method
 import org.http4k.core.Request
 import org.http4k.core.Response
 import org.http4k.core.Status
+import org.http4k.core.body.Form
+import org.http4k.core.body.toBody
 import org.http4k.server.Jetty
 import org.http4k.server.asServer
 import org.jsoup.Jsoup
@@ -17,8 +19,9 @@ import strikt.api.expectThat
 import strikt.assertions.isEqualTo
 
 class HttpActions(env: String = "local") : ZettaiActions {
-    private val lists: MutableMap<User, MutableList<ToDoList>> = mutableMapOf()
-    private val hub = ToDoListHub(lists)
+    private val store: ToDoListStore = mutableMapOf()
+    private val fetcher = ToDoListFetcherFromMap(store)
+    private val hub = ToDoListHub(fetcher)
 
     private val zettaiPort = 8000
     private val server = Zettai(hub).asServer(Jetty(zettaiPort))
@@ -35,14 +38,8 @@ class HttpActions(env: String = "local") : ZettaiActions {
         also { server.stop() }
 
     override fun ToDoListOwner.`starts with a list`(listName: String, items: List<String>) {
-        val user = User(name)
-        val newTodoList = ToDoList(
-            ListName(listName),
-            items.map(::ToDoItem)
-        )
-
-        val userTodoLists = lists.getOrPut(user) { mutableListOf() }
-        userTodoLists.add(newTodoList)
+        val newLIst = ToDoList.build(listName, items)
+        fetcher.assignListToUser(user, newLIst)
     }
 
     override fun getToDoList(user: User, listName: ListName): ToDoList? {
@@ -59,6 +56,24 @@ class HttpActions(env: String = "local") : ZettaiActions {
 
         return ToDoList(listName, items)
     }
+
+    override fun addListItem(user: User, listName: ListName, toDoItem: ToDoItem) {
+        val response = submitToZettai(
+            todoListUrl(user, listName),
+            listOf("itemname" to toDoItem.description,
+                "itemdue" to toDoItem.dueDate?.toString())
+        )
+
+        expectThat(response.status).isEqualTo(Status.SEE_OTHER)
+    }
+
+    private fun submitToZettai(path: String, webForm: Form): Response =
+        client(
+            log(
+                Request(Method.POST, "http://localhost:$zettaiPort/$path")
+                    .body(webForm.toBody())
+            )
+        )
 
     private fun callZettai(method: Method, path: String): Response =
         client(log(Request(method, "http://localhost:$zettaiPort/$path")))
