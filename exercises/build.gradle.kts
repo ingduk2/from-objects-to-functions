@@ -3,6 +3,8 @@ plugins {
     id("kotlin-conventions")
 }
 
-dependencies {
+val pesticideVersion: String by project
 
+dependencies {
+    testImplementation("com.ubertob.pesticide:pesticide-core:${pesticideVersion}")
 }
