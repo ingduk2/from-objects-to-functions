@@ -3,6 +3,8 @@ package ddt.com.zettai.tooling
 import com.ubertob.pesticide.core.*
 import com.zettai.domain.*
 import com.zettai.ui.HtmlPage
+import com.zettai.ui.toIsoLocalDate
+import com.zettai.ui.toStatus
 import com.zettai.webservice.Zettai
 import org.http4k.client.JettyClient
 import org.http4k.core.Method
@@ -87,12 +89,16 @@ class HttpActions(env: String = "local") : ZettaiActions {
         html.parse()
             .select("tr")
             .toList()
-            .filter { it.select("td").size == 1 }
+            .filter { it.select("td").size == 3 }
             .map {
-                it.select("td")[0].text().orEmpty()
+                Triple(
+                    it.select("td")[0].text().orEmpty(),
+                    it.select("td")[1].text().toIsoLocalDate(),
+                    it.select("td")[2].text().orEmpty().toStatus()
+                )
             }
-            .map {
-                ToDoItem(it)
+            .map { (name, date, status) ->
+                ToDoItem(name, date, status)
             }
 
     private fun <T> log(something: T): T {

@@ -6,7 +6,7 @@ import com.zettai.domain.ToDoItem
 import com.zettai.domain.User
 import com.zettai.domain.ZettaiHub
 import com.zettai.ui.HtmlPage
-import com.zettai.ui.renderHtml
+import com.zettai.ui.renderPage
 import org.http4k.core.*
 import org.http4k.core.body.form
 import org.http4k.routing.bind
@@ -27,7 +27,7 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     private fun getToDoList(request: Request): Response =
         request.let(::extractListData)
             .let(::fetchListContent)
-            ?.let(::renderHtml)
+            ?.let(::renderPage)
             ?.let(::createResponse)
             ?: Response(Status.NOT_FOUND)
 
