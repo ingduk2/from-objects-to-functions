@@ -6,6 +6,7 @@ import com.zettai.domain.ToDoItem
 import com.zettai.domain.User
 import com.zettai.domain.ZettaiHub
 import com.zettai.ui.HtmlPage
+import com.zettai.ui.renderListPage
 import com.zettai.ui.renderPage
 import org.http4k.core.*
 import org.http4k.core.body.form
@@ -18,6 +19,7 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     val routes = routes(
         "/todo/{user}/{listname}" bind Method.GET to ::getToDoList,
         "/todo/{user}/{listname}" bind Method.POST to ::addNewItem,
+        "/todo/{user}" bind Method.GET to ::getAllLists
     )
 
     override fun invoke(req: Request): Response {
@@ -62,4 +64,19 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
             }
             ?: Response(Status.NOT_FOUND)
     }
+
+    private fun getAllLists(request: Request): Response {
+        val user = request.extractUser()
+
+        return hub.getLists(user)
+            ?.let { renderListPage(user, it) }
+            ?.let(::toResponse)
+            ?: Response(Status.BAD_REQUEST)
+    }
+
+    private fun toResponse(htmlPage: HtmlPage): Response =
+        Response(Status.OK).body(htmlPage.raw)
+
+    private fun Request.extractUser(): User = path("user").orEmpty().let(::User)
+
 }

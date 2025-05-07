@@ -3,6 +3,7 @@ package com.zettai.domain
 interface ZettaiHub {
     fun getList(user: User, listName: ListName): ToDoList?
     fun addItemToList(user: User, listName: ListName, item: ToDoItem): ToDoList?
+    fun getLists(user: User): List<ListName>?
 }
 
 class ToDoListHub(
@@ -18,4 +19,7 @@ class ToDoListHub(
             val newList = copy(items = items.filterNot { it.description == item.description } + item)
             fetcher.assignListToUser(user, newList)
         }
+
+    override fun getLists(user: User): List<ListName>? =
+        fetcher.getAll(user)
 }

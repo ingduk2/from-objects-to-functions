@@ -7,9 +7,7 @@ import com.zettai.domain.ToDoList
 import com.zettai.domain.User
 import strikt.api.Assertion
 import strikt.api.expectThat
-import strikt.assertions.containsExactlyInAnyOrder
-import strikt.assertions.isNotNull
-import strikt.assertions.isNull
+import strikt.assertions.*
 
 data class ToDoListOwner(
     override val name: String
@@ -40,6 +38,20 @@ data class ToDoListOwner(
         step(itemName, listName) {
             val toDoItem = ToDoItem(itemName)
             addListItem(user, ListName(listName), toDoItem)
+        }
+
+    fun `cannot see any list`() =
+        step {
+            val lists = allUserLists(user)
+            expectThat(lists).isEmpty()
+        }
+
+    fun `can see the lists #listNames`(expectedLists: Set<String>) =
+        step {
+            val lists = allUserLists(user)
+            expectThat(lists)
+                .map(ListName::name)
+                .containsExactly(expectedLists)
         }
 }
 
