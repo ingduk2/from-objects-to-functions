@@ -1,6 +1,7 @@
 package ddt.com.zettai.tooling
 
 import com.ubertob.pesticide.core.DdtActor
+import com.ubertob.pesticide.core.DdtStep
 import com.zettai.domain.ListName
 import com.zettai.domain.ToDoItem
 import com.zettai.domain.ToDoList
@@ -52,6 +53,11 @@ data class ToDoListOwner(
             expectThat(lists)
                 .map(ListName::name)
                 .containsExactly(expectedLists)
+        }
+
+    fun `can create a new list called #listname`(listName: String) =
+        step(listName) {
+            createList(user, ListName.fromUntrustedOrThrow(listName))
         }
 }
 

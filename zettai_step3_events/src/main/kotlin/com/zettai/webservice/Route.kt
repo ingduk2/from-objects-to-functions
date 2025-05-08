@@ -6,7 +6,7 @@ import com.zettai.domain.ToDoItem
 import com.zettai.domain.User
 import com.zettai.domain.ZettaiHub
 import com.zettai.ui.HtmlPage
-import com.zettai.ui.renderListPage
+import com.zettai.ui.renderListsPage
 import com.zettai.ui.renderPage
 import org.http4k.core.*
 import org.http4k.core.body.form
@@ -19,7 +19,8 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     val routes = routes(
         "/todo/{user}/{listname}" bind Method.GET to ::getToDoList,
         "/todo/{user}/{listname}" bind Method.POST to ::addNewItem,
-        "/todo/{user}" bind Method.GET to ::getAllLists
+        "/todo/{user}" bind Method.GET to ::getAllLists,
+        "/todo/{user}" bind Method.POST to ::createNewList,
     )
 
     override fun invoke(req: Request): Response {
@@ -69,8 +70,19 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
         val user = request.extractUser()
 
         return hub.getLists(user)
-            ?.let { renderListPage(user, it) }
+            ?.let { renderListsPage(user, it) }
             ?.let(::toResponse)
+            ?: Response(Status.BAD_REQUEST)
+    }
+
+    private fun createNewList(request: Request): Response {
+        val user = request.extractUser()
+        val listName = request.extractListNameFromForm("listname")
+
+        return listName
+            ?.let { hub.createToDoList(user, it) }
+            ?.let { Response(Status.SEE_OTHER)
+                .header("Location", "/todo/${user.name}") }
             ?: Response(Status.BAD_REQUEST)
     }
 
@@ -79,4 +91,6 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
 
     private fun Request.extractUser(): User = path("user").orEmpty().let(::User)
 
+    private fun Request.extractListNameFromForm(formName: String) =
+        form(formName)?.let(ListName.Companion::fromUntrusted)
 }

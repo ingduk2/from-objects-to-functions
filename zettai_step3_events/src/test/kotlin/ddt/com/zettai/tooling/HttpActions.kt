@@ -77,6 +77,13 @@ class HttpActions(env: String = "local") : ZettaiActions {
         return names.map { name -> ListName.fromTrusted(name) }
     }
 
+    override fun createList(user: User, listName: ListName) {
+        val response = submitToZettai(allUserListsUrl(user), newListForm(listName))
+        expectThat(response.status).isEqualTo(Status.SEE_OTHER)
+    }
+
+    private fun newListForm(listName: ListName): Form = listOf("listname" to listName.name)
+
     private fun submitToZettai(path: String, webForm: Form): Response =
         client(
             log(
