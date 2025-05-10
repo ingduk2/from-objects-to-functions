@@ -12,5 +12,7 @@ class E03_UnionTypesTest {
         val expected = """{"my greetings":"hello world! \"How are you?\""}"""
 
         expectThat(compactJson(jsonText)).isEqualTo(expected)
+        expectThat(JsonUtilsJava.compactJson(jsonText)).isEqualTo(expected)
+        expectThat(JsonUtilsJava.compactJsonLoop(jsonText)).isEqualTo(expected)
     }
 }
