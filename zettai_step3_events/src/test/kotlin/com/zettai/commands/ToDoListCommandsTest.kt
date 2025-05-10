@@ -10,9 +10,15 @@ import strikt.assertions.isNull
 
 class ToDoListCommandsTest {
 
+    val noopFetcher = object : ToDoListUpdatableFetcher {
+        override fun assignListToUser(user: User, list: ToDoList): ToDoList? = null //do nothing
+        override fun get(user: User, listName: ListName): ToDoList? = TODO("not implemented")
+        override fun getAll(user: User): List<ListName>? = TODO("not implemented")
+    }
+
     private val streamer = ToDoListEventStreamerInMemory()
     private val eventStore = ToDoListEventStore(streamer)
-    private val handler = ToDoListCommandHandler(eventStore)
+    private val handler = ToDoListCommandHandler(eventStore, noopFetcher)
     private fun handle(cmd: ToDoListCommand): List<ToDoListEvent>? =
         handler(cmd)?.let(eventStore)
 
@@ -23,7 +29,7 @@ class ToDoListCommandsTest {
         val entityRetriever: ToDoListRetriever = object : ToDoListRetriever {
             override fun retrieveByName(user: User, listName: ListName) = InitialState
         }
-        val handler = ToDoListCommandHandler(entityRetriever)
+        val handler = ToDoListCommandHandler(entityRetriever, noopFetcher)
         val res = handler(cmd)?.single()
 
         expectThat(res).isEqualTo(ListCreated(cmd.id, cmd.user, cmd.name))

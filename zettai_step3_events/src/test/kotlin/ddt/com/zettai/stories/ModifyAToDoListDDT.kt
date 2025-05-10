@@ -10,6 +10,14 @@ class ModifyAToDoListDDT : ZettaiDDT(allActions()) {
     private val ann by NamedActor(::ToDoListOwner)
 
     @DDT
+    fun `users can create a new list`() = ddtScenario {
+        play(
+            ann.`can create a new list called #listname`("mylist"),
+            ann.`can see #listname with #itemnames`("mylist", emptyList())
+        )
+    }
+
+    @DDT
     fun `the list owner can add new items`() = ddtScenario {
         setUp {
             ann.`starts with a list`("diy", emptyList())

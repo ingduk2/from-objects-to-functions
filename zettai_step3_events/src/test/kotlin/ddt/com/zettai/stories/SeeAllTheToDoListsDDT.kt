@@ -4,7 +4,6 @@ import com.ubertob.pesticide.core.DDT
 import ddt.com.zettai.tooling.ZettaiDDT
 import ddt.com.zettai.tooling.allActions
 import ddt.com.zettai.tooling.ToDoListOwner
-import java.time.LocalDate
 
 class SeeAllTheToDoListsDDT : ZettaiDDT(allActions()) {
     private val carol by NamedActor(::ToDoListOwner)
@@ -37,7 +36,7 @@ class SeeAllTheToDoListsDDT : ZettaiDDT(allActions()) {
             dylan.`can create a new list called #listname`("gardening"),
             dylan.`can create a new list called #listname`("music"),
             dylan.`can see the lists #listNames`(setOf("gardening", "music"))
-        ).wip(LocalDate.now().plusDays(1), "working on it!")
+        )
     }
 
     private fun generateSomeToDoLists(): Map<String, List<String>> {

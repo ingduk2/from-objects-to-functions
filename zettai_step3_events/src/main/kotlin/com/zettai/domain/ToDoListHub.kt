@@ -1,30 +1,34 @@
 package com.zettai.domain
 
+import com.zettai.commands.ToDoListCommand
+import com.zettai.commands.ToDoListCommandHandler
+import com.zettai.events.ToDoListEvent
+import com.zettai.fp.EventPersister
+
 interface ZettaiHub {
     fun getList(user: User, listName: ListName): ToDoList?
-    fun addItemToList(user: User, listName: ListName, item: ToDoItem): ToDoList?
     fun getLists(user: User): List<ListName>?
-    fun createToDoList(user: User, it: ListName)
+    fun handle(command: ToDoListCommand): ToDoListCommand?
+}
+
+interface ToDoListFetcher {
+    fun get(user: User, listName: ListName): ToDoList?
+    fun getAll(user: User): List<ListName>?
 }
 
 class ToDoListHub(
-    val fetcher: ToDoListUpdatableFetcher
+    val fetcher: ToDoListFetcher,
+    val commandHandler: ToDoListCommandHandler,
+    val persistEvents: EventPersister<ToDoListEvent>
 ) : ZettaiHub {
-    override fun getList(user: User, listName: ListName): ToDoList? {
-        return fetcher(user, listName)
-    }
-
-    override fun addItemToList(user: User, listName: ListName, item: ToDoItem): ToDoList? =
-        fetcher(user, listName)?.run {
-            // 기존 item 제거 후 갱신
-            val newList = copy(items = items.filterNot { it.description == item.description } + item)
-            fetcher.assignListToUser(user, newList)
-        }
+    override fun getList(user: User, listName: ListName): ToDoList? =
+        fetcher.get(user, listName)
 
     override fun getLists(user: User): List<ListName>? =
         fetcher.getAll(user)
 
-    override fun createToDoList(user: User, it: ListName) {
-        TODO("Not yet implemented")
-    }
+    override fun handle(command: ToDoListCommand): ToDoListCommand? =
+        commandHandler(command)
+            ?.let(persistEvents)
+            ?.let { command }
 }

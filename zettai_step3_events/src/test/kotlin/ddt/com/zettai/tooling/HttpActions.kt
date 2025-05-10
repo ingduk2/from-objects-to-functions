@@ -1,6 +1,8 @@
 package ddt.com.zettai.tooling
 
 import com.ubertob.pesticide.core.*
+import com.zettai.commands.AddToDoItem
+import com.zettai.commands.CreateToDoList
 import com.zettai.domain.*
 import com.zettai.ui.HtmlPage
 import com.zettai.ui.toIsoLocalDate
@@ -18,12 +20,14 @@ import org.http4k.server.asServer
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import strikt.api.expectThat
+import strikt.assertions.hasSize
 import strikt.assertions.isEqualTo
+import kotlin.test.fail
 
 class HttpActions(env: String = "local") : ZettaiActions {
     private val store: ToDoListStore = mutableMapOf()
     private val fetcher = ToDoListFetcherFromMap(store)
-    private val hub = ToDoListHub(fetcher)
+    private val hub = prepareToDoListHubForTests(fetcher)
 
     private val zettaiPort = 8000
     private val server = Zettai(hub).asServer(Jetty(zettaiPort))
@@ -40,8 +44,15 @@ class HttpActions(env: String = "local") : ZettaiActions {
         also { server.stop() }
 
     override fun ToDoListOwner.`starts with a list`(listName: String, items: List<String>) {
-        val newLIst = ToDoList.build(listName, items)
-        fetcher.assignListToUser(user, newLIst)
+        val list = ListName.fromTrusted(listName)
+        val events = hub.handle(
+            CreateToDoList(user, list)
+        )
+        events ?: fail("Failed to create list $listName for $name")
+        val created = items.mapNotNull {
+            hub.handle(AddToDoItem(user, list, ToDoItem(it)))
+        }
+        expectThat(created).hasSize(items.size)
     }
 
     override fun getToDoList(user: User, listName: ListName): ToDoList? {

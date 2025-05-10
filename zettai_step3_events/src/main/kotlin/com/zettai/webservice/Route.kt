@@ -1,10 +1,13 @@
 package com.zettai.webservice
 
+import com.zettai.commands.AddToDoItem
+import com.zettai.commands.CreateToDoList
 import com.zettai.domain.ListName
 import com.zettai.domain.ToDoList
 import com.zettai.domain.ToDoItem
 import com.zettai.domain.User
 import com.zettai.domain.ZettaiHub
+import com.zettai.fp.tryOrNull
 import com.zettai.ui.HtmlPage
 import com.zettai.ui.renderListsPage
 import com.zettai.ui.renderPage
@@ -13,6 +16,7 @@ import org.http4k.core.body.form
 import org.http4k.routing.bind
 import org.http4k.routing.path
 import org.http4k.routing.routes
+import java.time.LocalDate
 
 class Zettai(val hub: ZettaiHub) : HttpHandler {
 
@@ -49,20 +53,12 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     }
 
     private fun addNewItem(request: Request): Response {
-        val user = request.path("user")
-            ?.let(::User)
-            ?: return Response(Status.BAD_REQUEST)
-        val listName = request.path("listname")
-            ?.let(::ListName)
-            ?: return Response(Status.BAD_REQUEST)
-        val item = request.form("itemname")
-            ?.let { ToDoItem(it) }
-            ?: return Response(Status.BAD_REQUEST)
-        return hub.addItemToList(user, listName, item)
-            ?.let {
-                Response(Status.SEE_OTHER)
-                    .header("Location", "/todo/${user.name}/${listName.name}")
-            }
+        val user = request.extractUser()
+        val listName = request.extractListName()
+        return request.extractItem()
+            ?.let { AddToDoItem(user, listName, it) }
+            ?.let(hub::handle)
+            ?.let { Response(Status.SEE_OTHER).header("Location", "/todo/${user.name}/${listName.name}") }
             ?: Response(Status.NOT_FOUND)
     }
 
@@ -78,9 +74,9 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     private fun createNewList(request: Request): Response {
         val user = request.extractUser()
         val listName = request.extractListNameFromForm("listname")
-
         return listName
-            ?.let { hub.createToDoList(user, it) }
+            ?.let { CreateToDoList(user, it) }
+            ?.let(hub::handle)
             ?.let { Response(Status.SEE_OTHER)
                 .header("Location", "/todo/${user.name}") }
             ?: Response(Status.BAD_REQUEST)
@@ -93,4 +89,13 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
 
     private fun Request.extractListNameFromForm(formName: String) =
         form(formName)?.let(ListName.Companion::fromUntrusted)
+
+    private fun Request.extractListName(): ListName =
+        path("listname").orEmpty().let(ListName.Companion::fromUntrustedOrThrow)
+
+    private fun Request.extractItem(): ToDoItem? {
+        val name = form("itemname") ?: return null
+        val duedate = tryOrNull { LocalDate.parse(form("itemdue")) }
+        return ToDoItem(name, duedate)
+    }
 }
