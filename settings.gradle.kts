@@ -13,4 +13,5 @@ include(
     "zettai_step1_http",
     "zettai_step2_domain",
     "zettai_step3_events",
+    "zettai_step4_projections",
 )
