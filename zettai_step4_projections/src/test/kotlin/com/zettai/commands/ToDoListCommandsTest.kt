@@ -1,26 +1,26 @@
 package com.zettai.commands
 
 import com.zettai.domain.*
+import com.zettai.domain.tooling.expectFailure
+import com.zettai.domain.tooling.expectSuccess
 import com.zettai.events.*
 import org.junit.jupiter.api.Test
 import strikt.api.expectThat
 import strikt.assertions.isA
 import strikt.assertions.isEqualTo
-import strikt.assertions.isNull
+import strikt.assertions.single
 
 class ToDoListCommandsTest {
 
     val noopFetcher = object : ToDoListUpdatableFetcher {
         override fun assignListToUser(user: User, list: ToDoList): ToDoList? = null //do nothing
-        override fun get(user: User, listName: ListName): ToDoList? = TODO("not implemented")
-        override fun getAll(user: User): List<ListName>? = TODO("not implemented")
+        override fun get(user: User, listName: ListName): ZettaiOutcome<ToDoList> = TODO("not implemented")
+        override fun getAll(user: User): ZettaiOutcome<List<ListName>> = TODO("not implemented")
     }
 
     private val streamer = ToDoListEventStreamerInMemory()
     private val eventStore = ToDoListEventStore(streamer)
     private val handler = ToDoListCommandHandler(eventStore, noopFetcher)
-    private fun handle(cmd: ToDoListCommand): List<ToDoListEvent>? =
-        handler(cmd)?.let(eventStore)
 
     @Test
     fun `CreateToDoList generate the correct event`() {
@@ -30,7 +30,7 @@ class ToDoListCommandsTest {
             override fun retrieveByName(user: User, listName: ListName) = InitialState
         }
         val handler = ToDoListCommandHandler(entityRetriever, noopFetcher)
-        val res = handler(cmd)?.single()
+        val res = handler(cmd).expectSuccess().single()
 
         expectThat(res).isEqualTo(ListCreated(cmd.id, cmd.user, cmd.name))
     }
@@ -38,11 +38,12 @@ class ToDoListCommandsTest {
     @Test
     fun `Add list fails if the user has already a list with same name`() {
         val cmd = CreateToDoList(randomUser(), randomListName())
-        val res = handle(cmd)?.single()
+        val res = handler(cmd).expectSuccess()
 
-        expectThat(res).isA<ListCreated>()
+        expectThat(res).single().isA<ListCreated>()
+        eventStore(res)
 
-        val duplicatedRes = handle(cmd)
-        expectThat(duplicatedRes).isNull()
+        val duplicatedRes = handler(cmd).expectFailure()
+        expectThat(duplicatedRes).isA<InconsistentStateError>()
     }
 }

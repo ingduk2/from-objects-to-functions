@@ -1,5 +1,7 @@
 package com.zettai.domain
 
+import com.zettai.fp.asSuccess
+import com.zettai.fp.recover
 import org.junit.jupiter.api.Test
 import strikt.api.expect
 import strikt.api.expectThat
@@ -18,7 +20,7 @@ class ToDoListHubTest {
             val list = randomToDoList()
             fetcher.assignListToUser(user, list)
 
-            val myList = hub.getList(user, list.listName)
+            val myList = hub.getList(user, list.listName).recover { null }
 
             expectThat(myList).isEqualTo(list)
         }
@@ -36,8 +38,8 @@ class ToDoListHubTest {
             fetcher.assignListToUser(secondUser, secondList)
 
             expect {
-                that(hub.getList(firstUser, secondList.listName)).isNull()
-                that(hub.getList(secondUser, firstList.listName)).isNull()
+                that(hub.getList(firstUser, secondList.listName).recover { null }).isNull()
+                that(hub.getList(secondUser, firstList.listName).recover { null }).isNull()
             }
         }
     }

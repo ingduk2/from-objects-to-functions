@@ -6,6 +6,7 @@ import com.ubertob.pesticide.core.Ready
 import com.zettai.commands.AddToDoItem
 import com.zettai.commands.CreateToDoList
 import com.zettai.domain.*
+import com.zettai.fp.recover
 import strikt.api.expectThat
 import strikt.assertions.hasSize
 
@@ -39,14 +40,14 @@ class DomainOnlyActions : ZettaiActions {
     }
 
     override fun getToDoList(user: User, listName: ListName): ToDoList? =
-        hub.getList(user, listName)
+        hub.getList(user, listName).recover { null }
 
     override fun addListItem(user: User, listName: ListName, toDoItem: ToDoItem) {
         hub.handle(AddToDoItem(user, listName, toDoItem))
     }
 
     override fun allUserLists(user: User): List<ListName> =
-        hub.getLists(user) ?: emptyList()
+        hub.getLists(user).recover { emptyList() }
 
     override fun createList(user: User, listName: ListName) {
         hub.handle(CreateToDoList(user, listName))

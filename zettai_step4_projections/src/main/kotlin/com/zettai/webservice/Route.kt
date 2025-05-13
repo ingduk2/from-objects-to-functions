@@ -2,11 +2,10 @@ package com.zettai.webservice
 
 import com.zettai.commands.AddToDoItem
 import com.zettai.commands.CreateToDoList
-import com.zettai.domain.ListName
-import com.zettai.domain.ToDoList
-import com.zettai.domain.ToDoItem
-import com.zettai.domain.User
-import com.zettai.domain.ZettaiHub
+import com.zettai.domain.*
+import com.zettai.fp.failIfNull
+import com.zettai.fp.onFailure
+import com.zettai.fp.recover
 import com.zettai.fp.tryOrNull
 import com.zettai.ui.HtmlPage
 import com.zettai.ui.renderListsPage
@@ -31,12 +30,13 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
         return routes(req)
     }
 
-    private fun getToDoList(request: Request): Response =
-        request.let(::extractListData)
-            .let(::fetchListContent)
-            ?.let(::renderPage)
-            ?.let(::createResponse)
-            ?: Response(Status.NOT_FOUND)
+    private fun getToDoList(request: Request): Response {
+        val list = request.let(::extractListData)
+        return hub.getList(list.first, list.second)
+            .transform { renderPage(it) }
+            .transform { createResponse(it) }
+            .recover { Response(Status.NOT_FOUND).body(it.msg) }
+    }
 
     private fun extractListData(request: Request): Pair<User, ListName> {
         val user = request.path("user") ?: error("User missing")
@@ -44,16 +44,12 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
         return User(user) to ListName(list)
     }
 
-    private fun fetchListContent(listId: Pair<User, ListName>): ToDoList? {
-        return hub.getList(listId.first, listId.second)
-    }
-
     private fun createResponse(html: HtmlPage): Response {
         return Response(Status.OK).body(html.raw)
     }
 
     private fun addNewItem(request: Request): Response {
-        val user = request.extractUser()
+        val user = request.extractUser().recover { User("anonymous") }
         val listName = request.extractListName()
         return request.extractItem()
             ?.let { AddToDoItem(user, listName, it) }
@@ -63,16 +59,16 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     }
 
     private fun getAllLists(request: Request): Response {
-        val user = request.extractUser()
+        val user = request.extractUser().onFailure { return Response(Status.BAD_REQUEST).body(it.msg) }
 
         return hub.getLists(user)
-            ?.let { renderListsPage(user, it) }
-            ?.let(::toResponse)
-            ?: Response(Status.BAD_REQUEST)
+            .transform { renderListsPage(user, it) }
+            .transform(::toResponse)
+            .recover { Response(Status.NOT_FOUND).body(it.msg) }
     }
 
     private fun createNewList(request: Request): Response {
-        val user = request.extractUser()
+        val user = request.extractUser().recover { User("anonymous") }
         val listName = request.extractListNameFromForm("listname")
         return listName
             ?.let { CreateToDoList(user, it) }
@@ -85,7 +81,10 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     private fun toResponse(htmlPage: HtmlPage): Response =
         Response(Status.OK).body(htmlPage.raw)
 
-    private fun Request.extractUser(): User = path("user").orEmpty().let(::User)
+    private fun Request.extractUser(): ZettaiOutcome<User> =
+        path("user")
+            .failIfNull(InvalidRequestError("User not present"))
+            .transform(::User)
 
     private fun Request.extractListNameFromForm(formName: String) =
         form(formName)?.let(ListName.Companion::fromUntrusted)
