@@ -1,13 +1,12 @@
 package ddt.com.zettai.tooling
 
 import com.ubertob.pesticide.core.*
-import com.zettai.commands.AddToDoItem
-import com.zettai.commands.CreateToDoList
 import com.zettai.domain.*
+import com.zettai.domain.tooling.expectSuccess
+import com.zettai.fp.asSuccess
 import com.zettai.ui.HtmlPage
 import com.zettai.ui.toIsoLocalDate
 import com.zettai.ui.toStatus
-import com.zettai.webservice.Zettai
 import org.http4k.client.JettyClient
 import org.http4k.core.Method
 import org.http4k.core.Request
@@ -20,46 +19,67 @@ import org.http4k.server.asServer
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import strikt.api.expectThat
-import strikt.assertions.hasSize
 import strikt.assertions.isEqualTo
-import kotlin.test.fail
+import java.time.Duration
 
-class HttpActions(env: String = "local") : ZettaiActions {
-    private val store: ToDoListStore = mutableMapOf()
-    private val fetcher = ToDoListFetcherFromMap(store)
-    private val hub = prepareToDoListHubForTests(fetcher)
-
+data class HttpActions(val env: String = "local") : ZettaiActions {
     private val zettaiPort = 8000
-    private val server = Zettai(hub).asServer(Jetty(zettaiPort))
+
     val client = JettyClient()
 
     override val protocol: DdtProtocol = Http(env)
-
     override fun prepare(): DomainSetUp {
+        if (verifyStarted(Duration.ZERO) == Ready)
+            return Ready
+
+        val server = prepareZettaiForTests().asServer(Jetty(zettaiPort))
         server.start()
-        return Ready
+        registerShutdownHook {
+            server.stop()
+        }
+        return verifyStarted(Duration.ofSeconds(2))
     }
 
-    override fun tearDown(): HttpActions =
-        also { server.stop() }
+    private fun verifyStarted(timeout: Duration): DomainSetUp {
+        val begin = System.currentTimeMillis()
+        while (true) {
+            val r = callZettai(Method.GET, "ping").status
+            if (r == Status.OK)
+                return Ready
+            if (elapsed(begin) >= timeout)
+                return NotReady("timeout $timeout exceeded")
+            Thread.sleep(10)
+        }
+    }
+
+    private fun elapsed(since: Long): Duration =
+        Duration.ofMillis(System.currentTimeMillis() - since)
+
+    private fun registerShutdownHook(hookToExecute: () -> Unit) {
+        Runtime.getRuntime().addShutdownHook(Thread {
+            val out = System.out
+            try {
+                hookToExecute()
+            } finally {
+                System.setOut(out)
+            }
+        })
+    }
 
     override fun ToDoListOwner.`starts with a list`(listName: String, items: List<String>) {
-        val list = ListName.fromTrusted(listName)
-        val events = hub.handle(
-            CreateToDoList(user, list)
-        )
-        events ?: fail("Failed to create list $listName for $name")
-        val created = items.mapNotNull {
-            hub.handle(AddToDoItem(user, list, ToDoItem(it)))
+        val listName1 = ListName.fromTrusted(listName)
+        val lists = allUserLists(user).expectSuccess()
+        if (listName1 !in lists) {
+            val response = submitToZettai(allUserListsUrl(user), newListForm(listName1))
+            expectThat(response.status).isEqualTo(Status.SEE_OTHER)
+            items.forEach {
+                addListItem(user, listName1, ToDoItem(it))
+            }
         }
-        expectThat(created).hasSize(items.size)
     }
 
-    override fun getToDoList(user: User, listName: ListName): ToDoList? {
+    override fun getToDoList(user: User, listName: ListName): ZettaiOutcome<ToDoList> {
         val response = callZettai(Method.GET, todoListUrl(user, listName))
-
-        if (response.status == Status.NOT_FOUND)
-            return null
 
         expectThat(response.status).isEqualTo(Status.OK)
 
@@ -67,7 +87,7 @@ class HttpActions(env: String = "local") : ZettaiActions {
 
         val items = extractItemsFromPage(html)
 
-        return ToDoList(listName, items)
+        return ToDoList(listName, items).asSuccess()
     }
 
     override fun addListItem(user: User, listName: ListName, toDoItem: ToDoItem) {
@@ -80,12 +100,12 @@ class HttpActions(env: String = "local") : ZettaiActions {
         expectThat(response.status).isEqualTo(Status.SEE_OTHER)
     }
 
-    override fun allUserLists(user: User): List<ListName> {
+    override fun allUserLists(user: User): ZettaiOutcome<List<ListName>> {
         val response = callZettai(Method.GET, allUserListsUrl(user))
         expectThat(response.status).isEqualTo(Status.OK)
         val html = HtmlPage(response.bodyString())
         val names = extractListNamesFromPage(html)
-        return names.map { name -> ListName.fromTrusted(name) }
+        return names.map { name -> ListName.fromTrusted(name) }.asSuccess()
     }
 
     override fun createList(user: User, listName: ListName) {

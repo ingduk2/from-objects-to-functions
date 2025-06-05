@@ -12,15 +12,9 @@ import strikt.assertions.single
 
 class ToDoListCommandsTest {
 
-    val noopFetcher = object : ToDoListUpdatableFetcher {
-        override fun assignListToUser(user: User, list: ToDoList): ToDoList? = null //do nothing
-        override fun get(user: User, listName: ListName): ZettaiOutcome<ToDoList> = TODO("not implemented")
-        override fun getAll(user: User): ZettaiOutcome<List<ListName>> = TODO("not implemented")
-    }
-
     private val streamer = ToDoListEventStreamerInMemory()
     private val eventStore = ToDoListEventStore(streamer)
-    private val handler = ToDoListCommandHandler(eventStore, noopFetcher)
+    private val handler = ToDoListCommandHandler(eventStore)
 
     @Test
     fun `CreateToDoList generate the correct event`() {
@@ -29,7 +23,7 @@ class ToDoListCommandsTest {
         val entityRetriever: ToDoListRetriever = object : ToDoListRetriever {
             override fun retrieveByName(user: User, listName: ListName) = InitialState
         }
-        val handler = ToDoListCommandHandler(entityRetriever, noopFetcher)
+        val handler = ToDoListCommandHandler(entityRetriever)
         val res = handler(cmd).expectSuccess().single()
 
         expectThat(res).isEqualTo(ListCreated(cmd.id, cmd.user, cmd.name))

@@ -1,28 +1,34 @@
 package com.zettai.domain
 
-import com.zettai.fp.asSuccess
-import com.zettai.fp.recover
+import com.zettai.commands.AddToDoItem
+import com.zettai.commands.CreateToDoList
+import com.zettai.domain.tooling.expectFailure
+import com.zettai.domain.tooling.expectSuccess
 import org.junit.jupiter.api.Test
 import strikt.api.expect
 import strikt.api.expectThat
+import strikt.assertions.isA
 import strikt.assertions.isEqualTo
-import strikt.assertions.isNull
 
 class ToDoListHubTest {
-    private fun emptyStore(): ToDoListStore = mutableMapOf()
-    private val fetcher = ToDoListFetcherFromMap(emptyStore())
-    private val hub = prepareToDoListHubForTests(fetcher)
+
+    private val hub = prepareToDoListHubForTests()
 
     @Test
     fun `get list by user and name`() {
-        repeat(10) {
-            val user = randomUser()
-            val list = randomToDoList()
-            fetcher.assignListToUser(user, list)
+        usersGenerator().take(10).forEach { user ->
+            val lists = toDoListsGenerator().take(100).toList()
+            lists.forEach { list ->
+                hub.handle(CreateToDoList(user, list.listName)).expectSuccess()
+                list.items.forEach {
+                    hub.handle(AddToDoItem(user, list.listName, it)).expectSuccess()
+                }
+            }
 
-            val myList = hub.getList(user, list.listName).recover { null }
-
-            expectThat(myList).isEqualTo(list)
+            lists.forEach { list ->
+                val myList = hub.getList(user, list.listName).expectSuccess()
+                expectThat(myList).isEqualTo(list)
+            }
         }
     }
 
@@ -34,12 +40,9 @@ class ToDoListHubTest {
             val firstUser = randomUser()
             val secondUser = randomUser()
 
-            fetcher.assignListToUser(firstUser, firstList)
-            fetcher.assignListToUser(secondUser, secondList)
-
             expect {
-                that(hub.getList(firstUser, secondList.listName).recover { null }).isNull()
-                that(hub.getList(secondUser, firstList.listName).recover { null }).isNull()
+                that(hub.getList(firstUser, secondList.listName).expectFailure()).isA<InvalidRequestError>()
+                that(hub.getList(secondUser, firstList.listName).expectFailure()).isA<InvalidRequestError>()
             }
         }
     }

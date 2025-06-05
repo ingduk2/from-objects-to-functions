@@ -1,11 +1,11 @@
 package ddt.com.zettai.tooling
 
 import com.ubertob.pesticide.core.DdtActor
-import com.ubertob.pesticide.core.DdtStep
 import com.zettai.domain.ListName
 import com.zettai.domain.ToDoItem
 import com.zettai.domain.ToDoList
 import com.zettai.domain.User
+import com.zettai.domain.tooling.expectSuccess
 import strikt.api.Assertion
 import strikt.api.expectThat
 import strikt.assertions.*
@@ -21,18 +21,16 @@ data class ToDoListOwner(
         expectedItems: List<String>,
     ) =
         step(listName, expectedItems) {
-            val list = getToDoList(user, ListName(listName))
-
+            val list = getToDoList(user, ListName.fromUntrustedOrThrow(listName)).expectSuccess()
             expectThat(list)
-                .isNotNull()
                 .itemNames
                 .containsExactlyInAnyOrder(expectedItems)
         }
 
     fun `cannot see #listname`(listName: String) =
         step(listName) {
-            val list = getToDoList(user, ListName(listName))
-            expectThat(list).isNull()
+            val lists = allUserLists(user).expectSuccess()
+            expectThat(lists.map { it.name }).doesNotContain(listName)
         }
 
     fun `can add #item to #listname`(itemName: String, listName: String) =
@@ -43,13 +41,13 @@ data class ToDoListOwner(
 
     fun `cannot see any list`() =
         step {
-            val lists = allUserLists(user)
+            val lists = allUserLists(user).expectSuccess()
             expectThat(lists).isEmpty()
         }
 
     fun `can see the lists #listNames`(expectedLists: Set<String>) =
         step {
-            val lists = allUserLists(user)
+            val lists = allUserLists(user).expectSuccess()
             expectThat(lists)
                 .map(ListName::name)
                 .containsExactly(expectedLists)

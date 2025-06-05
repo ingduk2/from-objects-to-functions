@@ -19,7 +19,8 @@ import java.time.LocalDate
 
 class Zettai(val hub: ZettaiHub) : HttpHandler {
 
-    val routes = routes(
+    val httpHandler = routes(
+        "/ping" bind Method.GET to { Response(Status.OK) },
         "/todo/{user}/{listname}" bind Method.GET to ::getToDoList,
         "/todo/{user}/{listname}" bind Method.POST to ::addNewItem,
         "/todo/{user}" bind Method.GET to ::getAllLists,
@@ -27,7 +28,7 @@ class Zettai(val hub: ZettaiHub) : HttpHandler {
     )
 
     override fun invoke(req: Request): Response {
-        return routes(req)
+        return httpHandler(req)
     }
 
     private fun getToDoList(request: Request): Response {

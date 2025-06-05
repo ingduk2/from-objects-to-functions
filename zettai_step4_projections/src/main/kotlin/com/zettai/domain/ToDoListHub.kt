@@ -7,6 +7,8 @@ import com.zettai.events.ToDoListState
 import com.zettai.fp.EventPersister
 import com.zettai.fp.Outcome
 import com.zettai.fp.OutcomeError
+import com.zettai.fp.failIfNull
+import com.zettai.queries.ToDoListQueryRunner
 
 sealed class ZettaiError : OutcomeError
 data class NotFoundError(override val msg: String) : ZettaiError()
@@ -30,15 +32,23 @@ interface ToDoListFetcher {
 }
 
 class ToDoListHub(
-    val fetcher: ToDoListFetcher,
+    val queryRunner: ToDoListQueryRunner,
     val commandHandler: ToDoListCommandHandler,
     val persistEvents: EventPersister<ToDoListEvent>
 ) : ZettaiHub {
     override fun getList(user: User, listName: ListName): ZettaiOutcome<ToDoList> =
-        fetcher.get(user, listName)
+        queryRunner {
+            listProjection
+                .findList(user, listName)
+                .failIfNull(InvalidRequestError("List $listName of user $user not found!"))
+        }.runIt()
 
     override fun getLists(user: User): ZettaiOutcome<List<ListName>> =
-        fetcher.getAll(user)
+        queryRunner {
+            listProjection
+                .findAll(user)
+                .failIfNull(InvalidRequestError("User $user not found!"))
+        }.runIt()
 
     override fun handle(command: ToDoListCommand): ZettaiOutcome<ToDoListCommand> =
         commandHandler(command)

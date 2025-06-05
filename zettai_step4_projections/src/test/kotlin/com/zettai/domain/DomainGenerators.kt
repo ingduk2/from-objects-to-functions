@@ -5,7 +5,7 @@ import com.zettai.domain.tooling.lowercase
 import com.zettai.domain.tooling.randomString
 import kotlin.random.Random.Default.nextInt
 
-fun userGenerator(): Sequence<User> = generateSequence {
+fun usersGenerator(): Sequence<User> = generateSequence {
     randomUser()
 }
 
@@ -16,6 +16,10 @@ fun itemGenerator(): Sequence<ToDoItem> = generateSequence {
 }
 
 fun randomItem() = ToDoItem(randomString(lowercase + digits, 5, 20), null, ToDoStatus.Todo)
+
+fun toDoListsGenerator(): Sequence<ToDoList> = generateSequence {
+    randomToDoList()
+}
 
 fun randomToDoList(): ToDoList = ToDoList(
     randomListName(),
